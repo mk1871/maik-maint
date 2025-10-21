@@ -2,7 +2,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { supabase } from '@/lib/supabaseClient'
-import type { User, AuthError } from '@supabase/supabase-js'
+import type { User } from '@supabase/supabase-js'
 import type { UserProfile } from '@/types/user'
 
 export const useAuthStore = defineStore('auth', () => {
@@ -33,20 +33,29 @@ export const useAuthStore = defineStore('auth', () => {
    * Verifica si hay sesión activa al cargar la app
    */
   const checkAuth = async (): Promise<void> => {
-    if (isInitialized.value) return
+    if (isInitialized.value) {
+      return
+    }
 
     try {
       isLoading.value = true
+
       const { data, error } = await supabase.auth.getSession()
 
       if (error) throw error
 
       if (data.session) {
         user.value = data.session.user
+        // Obtener perfil solo si la sesión está completa
         await fetchProfile()
+      } else {
+        user.value = null
+        profile.value = null
       }
     } catch (error: unknown) {
       console.error('Error checking auth:', getErrorMessage(error))
+      user.value = null
+      profile.value = null
     } finally {
       isLoading.value = false
       isInitialized.value = true
@@ -67,10 +76,22 @@ export const useAuthStore = defineStore('auth', () => {
         .single()
 
       if (error) throw error
+
       profile.value = data
     } catch (error: unknown) {
       console.error('Error fetching profile:', getErrorMessage(error))
-      throw new Error(getErrorMessage(error))
+
+      // Usar perfil por defecto en caso de error
+      if (user.value) {
+        profile.value = {
+          id: user.value.id,
+          role: 'supervisor',
+          full_name: user.value.email?.split('@')[0] || 'Usuario',
+          profile_picture_url: null,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        }
+      }
     }
   }
 
@@ -82,7 +103,7 @@ export const useAuthStore = defineStore('auth', () => {
       isLoading.value = true
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
-        password,
+        password
       })
 
       if (error) throw error
@@ -122,6 +143,9 @@ export const useAuthStore = defineStore('auth', () => {
    */
   const setupAuthListener = () => {
     supabase.auth.onAuthStateChange(async (event, session) => {
+      // Solo reaccionar a eventos específicos después de la inicialización
+      if (!isInitialized.value) return
+
       if (event === 'SIGNED_IN' && session) {
         user.value = session.user
         await fetchProfile()
@@ -149,6 +173,6 @@ export const useAuthStore = defineStore('auth', () => {
     fetchProfile,
     login,
     logout,
-    setupAuthListener,
+    setupAuthListener
   }
 })
