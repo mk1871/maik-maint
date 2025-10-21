@@ -21,29 +21,29 @@ const routes: RouteRecordRaw[] = [
     component: HomeView,
     meta: { requiresAuth: true, title: 'Dashboard' },
   },
-  // {
-  //   path: '/accommodations',
-  //   name: 'Accommodations',
-  //   component: () => import('@/views/AccommodationsView.vue'),
-  //   meta: { requiresAuth: true, title: 'Alojamientos' },
-  // },
+  {
+    path: '/accommodations',
+    name: 'Accommodations',
+    component: () => import('@/views/AccommodationsView.vue'),
+    meta: { requiresAuth: true, title: 'Alojamientos' },
+  },
   // {
   //   path: '/accommodations/:id',
   //   name: 'AccommodationDetail',
   //   component: () => import('@/views/AccommodationDetailView.vue'),
-  //   meta: { requiresAuth: true, title: 'Detalle de Alojamiento' },
+  //   meta: { requiresAuth: true, title: 'Detalle de Alojamiento' }
   // },
   // {
   //   path: '/tasks',
   //   name: 'Tasks',
   //   component: () => import('@/views/TasksView.vue'),
-  //   meta: { requiresAuth: true, title: 'Tareas' },
+  //   meta: { requiresAuth: true, title: 'Tareas' }
   // },
   // {
   //   path: '/tasks/:id',
   //   name: 'TaskDetail',
   //   component: () => import('@/views/TaskDetailView.vue'),
-  //   meta: { requiresAuth: true, title: 'Detalle de Tarea' },
+  //   meta: { requiresAuth: true, title: 'Detalle de Tarea' }
   // },
   {
     path: '/:pathMatch(.*)*',
@@ -60,31 +60,42 @@ const router = createRouter({
 
 /**
  * Guard de autenticación global
- * Verifica si el usuario está autenticado antes de acceder a rutas protegidas
  */
 router.beforeEach(async (to, _from, next) => {
+  // Declarar authStore DENTRO del beforeEach
   const authStore = useAuthStore()
   const requiresAuth = to.meta.requiresAuth !== false
 
   // Actualizar título de la página
   document.title = to.meta.title ? `${to.meta.title} | Maintenance App` : 'Maintenance App'
 
-  if (requiresAuth && !authStore.isAuthenticated) {
-    // Intentar restaurar sesión antes de redirigir
-    await authStore.checkAuth()
-
-    if (!authStore.isAuthenticated) {
-      next({ name: 'Login', query: { redirect: to.fullPath } })
+  // Si la ruta NO requiere autenticación
+  if (!requiresAuth) {
+    // Pero si está autenticado y va a login, redirigir a home
+    if (to.name === 'Login' && authStore.isAuthenticated) {
+      next({ name: 'Home' })
       return
     }
-  }
-
-  // Si el usuario ya está autenticado y trata de ir a login, redirigir a home
-  if (to.name === 'Login' && authStore.isAuthenticated) {
-    next({ name: 'Home' })
+    next()
     return
   }
 
+  // Si la ruta requiere autenticación
+  // Verificar sesión solo si no se ha inicializado
+  if (!authStore.isInitialized) {
+    await authStore.checkAuth()
+  }
+
+  // Verificar si está autenticado
+  if (!authStore.isAuthenticated) {
+    next({
+      name: 'Login',
+      query: { redirect: to.fullPath },
+    })
+    return
+  }
+
+  // Todo correcto, permitir navegación
   next()
 })
 

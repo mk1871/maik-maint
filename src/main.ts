@@ -1,3 +1,4 @@
+// src/main.ts
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 import { Toaster } from 'vue-sonner'
@@ -18,4 +19,5 @@ app.component('Toaster', Toaster)
 const authStore = useAuthStore()
 authStore.setupAuthListener()
 
+// Montar la app inmediatamente (sin esperar checkAuth)
 app.mount('#app')
