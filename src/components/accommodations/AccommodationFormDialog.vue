@@ -29,7 +29,7 @@ import {
 import { useAccommodationsStore } from '@/stores/accommodations'
 import {
   accommodationValidationSchema,
-  type AccommodationFormValues,
+  type AccommodationFormValues
 } from '@/schemas/accommodationSchema'
 import type { Accommodation } from '@/types/accommodation'
 
@@ -40,7 +40,7 @@ interface Props {
 
 const props = withDefaults(defineProps<Props>(), {
   accommodation: null,
-  mode: 'create',
+  mode: 'create'
 })
 
 const emit = defineEmits<{
@@ -53,11 +53,9 @@ const isOpen = ref(false)
 const isSubmitting = ref(false)
 
 const isEditMode = computed(() => props.mode === 'edit')
-const dialogTitle = computed(() =>
-  isEditMode.value ? 'Editar Alojamiento' : 'Crear Nuevo Alojamiento',
-)
+const dialogTitle = computed(() => isEditMode.value ? 'Editar Alojamiento' : 'Crear Nuevo Alojamiento')
 
-const form = useForm<AccommodationFormValues>({
+const { defineField, handleSubmit, errors, resetForm, setValues } = useForm<AccommodationFormValues>({
   validationSchema: accommodationValidationSchema,
   initialValues: {
     code: '',
@@ -68,22 +66,25 @@ const form = useForm<AccommodationFormValues>({
   },
 })
 
+// Usar defineField correctamente
+const [code] = defineField('code')
+const [name] = defineField('name')
+const [address] = defineField('address')
+const [status] = defineField('status')
+const [notes] = defineField('notes')
+
 // Cargar datos cuando se edita
-watch(
-  () => props.accommodation,
-  (newAccommodation) => {
-    if (newAccommodation && isEditMode.value) {
-      form.setValues({
-        code: newAccommodation.code,
-        name: newAccommodation.name,
-        address: newAccommodation.address || '',
-        status: newAccommodation.status,
-        notes: newAccommodation.notes || '',
-      })
-    }
-  },
-  { immediate: true },
-)
+watch(() => props.accommodation, (newAccommodation) => {
+  if (newAccommodation && isEditMode.value) {
+    setValues({
+      code: newAccommodation.code,
+      name: newAccommodation.name,
+      address: newAccommodation.address || '',
+      status: newAccommodation.status,
+      notes: newAccommodation.notes || '',
+    })
+  }
+}, { immediate: true })
 
 /**
  * Extrae mensaje de error de forma segura
@@ -97,14 +98,14 @@ const getErrorMessage = (error: unknown): string => {
   return 'Error desconocido'
 }
 
-const onSubmit = form.handleSubmit(async (values) => {
+const onSubmit = handleSubmit(async (values) => {
   try {
     isSubmitting.value = true
 
     if (isEditMode.value && props.accommodation) {
       await accommodationsStore.updateAccommodation({
         id: props.accommodation.id,
-        ...values,
+        ...values
       })
       toast.success('Alojamiento actualizado exitosamente')
     } else {
@@ -113,15 +114,12 @@ const onSubmit = form.handleSubmit(async (values) => {
     }
 
     emit('success')
-    form.resetForm()
+    resetForm()
     isOpen.value = false
   } catch (error: unknown) {
-    toast.error(
-      isEditMode.value ? 'Error al actualizar alojamiento' : 'Error al crear alojamiento',
-      {
-        description: getErrorMessage(error),
-      },
-    )
+    toast.error(isEditMode.value ? 'Error al actualizar alojamiento' : 'Error al crear alojamiento', {
+      description: getErrorMessage(error)
+    })
   } finally {
     isSubmitting.value = false
   }
@@ -130,7 +128,7 @@ const onSubmit = form.handleSubmit(async (values) => {
 const handleOpenChange = (open: boolean) => {
   isOpen.value = open
   if (!open && !isEditMode.value) {
-    form.resetForm()
+    resetForm()
   }
 }
 </script>
@@ -148,11 +146,7 @@ const handleOpenChange = (open: boolean) => {
       <DialogHeader>
         <DialogTitle>{{ dialogTitle }}</DialogTitle>
         <DialogDescription>
-          {{
-            isEditMode
-              ? 'Modifica los datos del alojamiento'
-              : 'Completa los datos básicos del alojamiento'
-          }}
+          {{ isEditMode ? 'Modifica los datos del alojamiento' : 'Completa los datos básicos del alojamiento' }}
         </DialogDescription>
       </DialogHeader>
 
@@ -162,14 +156,13 @@ const handleOpenChange = (open: boolean) => {
           <Label html-for="code">Código *</Label>
           <Input
             id="code"
-            v-model="form.values.code"
+            v-model="code"
             :disabled="isSubmitting"
             maxlength="4"
             placeholder="GB14"
-            @blur="form.setFieldTouched('code', true)"
           />
-          <p v-if="form.errors.value.code" class="text-sm font-medium text-destructive">
-            {{ form.errors.value.code }}
+          <p v-if="errors.code" class="text-sm font-medium text-destructive">
+            {{ errors.code }}
           </p>
         </div>
 
@@ -178,13 +171,12 @@ const handleOpenChange = (open: boolean) => {
           <Label html-for="name">Nombre *</Label>
           <Input
             id="name"
-            v-model="form.values.name"
+            v-model="name"
             :disabled="isSubmitting"
             placeholder="Gil Blas 14"
-            @blur="form.setFieldTouched('name', true)"
           />
-          <p v-if="form.errors.value.name" class="text-sm font-medium text-destructive">
-            {{ form.errors.value.name }}
+          <p v-if="errors.name" class="text-sm font-medium text-destructive">
+            {{ errors.name }}
           </p>
         </div>
 
@@ -193,7 +185,7 @@ const handleOpenChange = (open: boolean) => {
           <Label html-for="address">Dirección</Label>
           <Input
             id="address"
-            v-model="form.values.address"
+            v-model="address"
             :disabled="isSubmitting"
             placeholder="Calle Gil Blas 14, Madrid"
           />
@@ -202,7 +194,7 @@ const handleOpenChange = (open: boolean) => {
         <!-- Estado -->
         <div class="grid gap-2">
           <Label html-for="status">Estado</Label>
-          <Select v-model="form.values.status" :disabled="isSubmitting">
+          <Select v-model="status" :disabled="isSubmitting">
             <SelectTrigger>
               <SelectValue placeholder="Seleccionar estado" />
             </SelectTrigger>
@@ -218,13 +210,13 @@ const handleOpenChange = (open: boolean) => {
           <Label html-for="notes">Notas</Label>
           <Textarea
             id="notes"
-            v-model="form.values.notes"
+            v-model="notes"
             :disabled="isSubmitting"
             placeholder="Información adicional..."
             rows="3"
           />
-          <p v-if="form.errors.value.notes" class="text-sm font-medium text-destructive">
-            {{ form.errors.value.notes }}
+          <p v-if="errors.notes" class="text-sm font-medium text-destructive">
+            {{ errors.notes }}
           </p>
         </div>
 
@@ -232,7 +224,7 @@ const handleOpenChange = (open: boolean) => {
           <Button :disabled="isSubmitting" type="button" variant="outline" @click="isOpen = false">
             Cancelar
           </Button>
-          <Button :disabled="isSubmitting || !form.meta.value.valid" type="submit">
+          <Button :disabled="isSubmitting" type="submit">
             <Loader2 v-if="isSubmitting" class="mr-2 h-4 w-4 animate-spin" />
             {{ isEditMode ? 'Actualizar' : 'Crear' }}
           </Button>
