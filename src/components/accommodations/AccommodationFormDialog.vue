@@ -1,0 +1,243 @@
+<!-- src/components/accommodations/AccommodationFormDialog.vue -->
+<script lang="ts" setup>
+import { ref, computed, watch } from 'vue'
+import { useForm } from 'vee-validate'
+import { toast } from 'vue-sonner'
+import { Plus, Loader2 } from 'lucide-vue-next'
+
+import { Button } from '@/components/ui/button'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+
+import { useAccommodationsStore } from '@/stores/accommodations'
+import {
+  accommodationValidationSchema,
+  type AccommodationFormValues,
+} from '@/schemas/accommodationSchema'
+import type { Accommodation } from '@/types/accommodation'
+
+interface Props {
+  accommodation?: Accommodation | null
+  mode?: 'create' | 'edit'
+}
+
+const props = withDefaults(defineProps<Props>(), {
+  accommodation: null,
+  mode: 'create',
+})
+
+const emit = defineEmits<{
+  success: []
+}>()
+
+const accommodationsStore = useAccommodationsStore()
+
+const isOpen = ref(false)
+const isSubmitting = ref(false)
+
+const isEditMode = computed(() => props.mode === 'edit')
+const dialogTitle = computed(() =>
+  isEditMode.value ? 'Editar Alojamiento' : 'Crear Nuevo Alojamiento',
+)
+
+const form = useForm<AccommodationFormValues>({
+  validationSchema: accommodationValidationSchema,
+  initialValues: {
+    code: '',
+    name: '',
+    address: '',
+    status: 'active',
+    notes: '',
+  },
+})
+
+// Cargar datos cuando se edita
+watch(
+  () => props.accommodation,
+  (newAccommodation) => {
+    if (newAccommodation && isEditMode.value) {
+      form.setValues({
+        code: newAccommodation.code,
+        name: newAccommodation.name,
+        address: newAccommodation.address || '',
+        status: newAccommodation.status,
+        notes: newAccommodation.notes || '',
+      })
+    }
+  },
+  { immediate: true },
+)
+
+/**
+ * Extrae mensaje de error de forma segura
+ */
+const getErrorMessage = (error: unknown): string => {
+  if (error instanceof Error) return error.message
+  if (typeof error === 'string') return error
+  if (error && typeof error === 'object' && 'message' in error) {
+    return String(error.message)
+  }
+  return 'Error desconocido'
+}
+
+const onSubmit = form.handleSubmit(async (values) => {
+  try {
+    isSubmitting.value = true
+
+    if (isEditMode.value && props.accommodation) {
+      await accommodationsStore.updateAccommodation({
+        id: props.accommodation.id,
+        ...values,
+      })
+      toast.success('Alojamiento actualizado exitosamente')
+    } else {
+      await accommodationsStore.createAccommodation(values)
+      toast.success('Alojamiento creado exitosamente')
+    }
+
+    emit('success')
+    form.resetForm()
+    isOpen.value = false
+  } catch (error: unknown) {
+    toast.error(
+      isEditMode.value ? 'Error al actualizar alojamiento' : 'Error al crear alojamiento',
+      {
+        description: getErrorMessage(error),
+      },
+    )
+  } finally {
+    isSubmitting.value = false
+  }
+})
+
+const handleOpenChange = (open: boolean) => {
+  isOpen.value = open
+  if (!open && !isEditMode.value) {
+    form.resetForm()
+  }
+}
+</script>
+
+<template>
+  <Dialog :open="isOpen" @update:open="handleOpenChange">
+    <DialogTrigger v-if="!isEditMode" as-child>
+      <Button>
+        <Plus class="mr-2 h-4 w-4" />
+        Nuevo Alojamiento
+      </Button>
+    </DialogTrigger>
+
+    <DialogContent class="max-w-2xl">
+      <DialogHeader>
+        <DialogTitle>{{ dialogTitle }}</DialogTitle>
+        <DialogDescription>
+          {{
+            isEditMode
+              ? 'Modifica los datos del alojamiento'
+              : 'Completa los datos básicos del alojamiento'
+          }}
+        </DialogDescription>
+      </DialogHeader>
+
+      <form class="space-y-4" @submit="onSubmit">
+        <!-- Código -->
+        <div class="grid gap-2">
+          <Label html-for="code">Código *</Label>
+          <Input
+            id="code"
+            v-model="form.values.code"
+            :disabled="isSubmitting"
+            maxlength="4"
+            placeholder="GB14"
+            @blur="form.setFieldTouched('code', true)"
+          />
+          <p v-if="form.errors.value.code" class="text-sm font-medium text-destructive">
+            {{ form.errors.value.code }}
+          </p>
+        </div>
+
+        <!-- Nombre -->
+        <div class="grid gap-2">
+          <Label html-for="name">Nombre *</Label>
+          <Input
+            id="name"
+            v-model="form.values.name"
+            :disabled="isSubmitting"
+            placeholder="Gil Blas 14"
+            @blur="form.setFieldTouched('name', true)"
+          />
+          <p v-if="form.errors.value.name" class="text-sm font-medium text-destructive">
+            {{ form.errors.value.name }}
+          </p>
+        </div>
+
+        <!-- Dirección -->
+        <div class="grid gap-2">
+          <Label html-for="address">Dirección</Label>
+          <Input
+            id="address"
+            v-model="form.values.address"
+            :disabled="isSubmitting"
+            placeholder="Calle Gil Blas 14, Madrid"
+          />
+        </div>
+
+        <!-- Estado -->
+        <div class="grid gap-2">
+          <Label html-for="status">Estado</Label>
+          <Select v-model="form.values.status" :disabled="isSubmitting">
+            <SelectTrigger>
+              <SelectValue placeholder="Seleccionar estado" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="active">Activo</SelectItem>
+              <SelectItem value="inactive">Inactivo</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        <!-- Notas -->
+        <div class="grid gap-2">
+          <Label html-for="notes">Notas</Label>
+          <Textarea
+            id="notes"
+            v-model="form.values.notes"
+            :disabled="isSubmitting"
+            placeholder="Información adicional..."
+            rows="3"
+          />
+          <p v-if="form.errors.value.notes" class="text-sm font-medium text-destructive">
+            {{ form.errors.value.notes }}
+          </p>
+        </div>
+
+        <DialogFooter>
+          <Button :disabled="isSubmitting" type="button" variant="outline" @click="isOpen = false">
+            Cancelar
+          </Button>
+          <Button :disabled="isSubmitting || !form.meta.value.valid" type="submit">
+            <Loader2 v-if="isSubmitting" class="mr-2 h-4 w-4 animate-spin" />
+            {{ isEditMode ? 'Actualizar' : 'Crear' }}
+          </Button>
+        </DialogFooter>
+      </form>
+    </DialogContent>
+  </Dialog>
+</template>

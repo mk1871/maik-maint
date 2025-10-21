@@ -21,12 +21,12 @@ const routes: RouteRecordRaw[] = [
     component: HomeView,
     meta: { requiresAuth: true, title: 'Dashboard' },
   },
-  // {
-  //   path: '/accommodations',
-  //   name: 'Accommodations',
-  //   component: () => import('@/views/AccommodationsView.vue'),
-  //   meta: { requiresAuth: true, title: 'Alojamientos' },
-  // },
+  {
+    path: '/accommodations',
+    name: 'Accommodations',
+    component: () => import('@/views/AccommodationsView.vue'),
+    meta: { requiresAuth: true, title: 'Alojamientos' },
+  },
   // {
   //   path: '/accommodations/:id',
   //   name: 'AccommodationDetail',
@@ -69,10 +69,14 @@ router.beforeEach(async (to, _from, next) => {
   // Actualizar título de la página
   document.title = to.meta.title ? `${to.meta.title} | Maintenance App` : 'Maintenance App'
 
-  if (requiresAuth && !authStore.isAuthenticated) {
-    // Intentar restaurar sesión antes de redirigir
-    await authStore.checkAuth()
+  // Si la ruta requiere autenticación
+  if (requiresAuth) {
+    // Esperar a que se verifique la sesión (solo la primera vez)
+    if (!authStore.isInitialized) {
+      await authStore.checkAuth()
+    }
 
+    // Si después de verificar no está autenticado, redirigir a login
     if (!authStore.isAuthenticated) {
       next({ name: 'Login', query: { redirect: to.fullPath } })
       return

@@ -1,3 +1,4 @@
+// src/main.ts
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 import { Toaster } from 'vue-sonner'
@@ -18,4 +19,7 @@ app.component('Toaster', Toaster)
 const authStore = useAuthStore()
 authStore.setupAuthListener()
 
-app.mount('#app')
+// Inicializar verificación de sesión
+authStore.checkAuth().then(() => {
+  app.mount('#app')
+})
