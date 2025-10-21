@@ -89,7 +89,7 @@ export const useAuthStore = defineStore('auth', () => {
           full_name: user.value.email?.split('@')[0] || 'Usuario',
           profile_picture_url: null,
           created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
+          updated_at: new Date().toISOString(),
         }
       }
     }
@@ -103,7 +103,7 @@ export const useAuthStore = defineStore('auth', () => {
       isLoading.value = true
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
-        password
+        password,
       })
 
       if (error) throw error
@@ -173,6 +173,6 @@ export const useAuthStore = defineStore('auth', () => {
     fetchProfile,
     login,
     logout,
-    setupAuthListener
+    setupAuthListener,
   }
 })

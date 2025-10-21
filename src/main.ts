@@ -19,7 +19,5 @@ app.component('Toaster', Toaster)
 const authStore = useAuthStore()
 authStore.setupAuthListener()
 
-// Inicializar verificación de sesión
-authStore.checkAuth().then(() => {
-  app.mount('#app')
-})
+// Montar la app inmediatamente (sin esperar checkAuth)
+app.mount('#app')
