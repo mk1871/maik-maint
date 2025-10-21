@@ -36,7 +36,9 @@ const accommodationsStore = useAccommodationsStore()
 const authStore = useAuthStore()
 
 const accommodationToDelete = ref<Accommodation | null>(null)
+const accommodationToEdit = ref<Accommodation | null>(null)
 const isDeleteDialogOpen = ref(false)
+const isEditDialogOpen = ref(false)
 const isDeleting = ref(false)
 
 onMounted(async () => {
@@ -60,10 +62,14 @@ const handleAccommodationCreated = async () => {
 }
 
 const handleEditAccommodation = (accommodation: Accommodation) => {
-  // Por ahora solo mostramos un mensaje, implementaremos edición después
-  toast.info('Edición', {
-    description: 'La función de edición se implementará próximamente'
-  })
+  accommodationToEdit.value = accommodation
+  isEditDialogOpen.value = true
+}
+
+const handleEditSuccess = async () => {
+  isEditDialogOpen.value = false
+  accommodationToEdit.value = null
+  await accommodationsStore.fetchAccommodations()
 }
 
 const handleDeleteClick = (accommodation: Accommodation) => {
@@ -191,6 +197,15 @@ const handleCardClick = (accommodation: Accommodation) => {
         </CardContent>
       </Card>
     </main>
+
+    <!-- Edit Dialog -->
+    <AccommodationFormDialog
+      v-if="accommodationToEdit"
+      :key="accommodationToEdit.id"
+      :accommodation="accommodationToEdit"
+      mode="edit"
+      @success="handleEditSuccess"
+    />
 
     <!-- Delete Confirmation Dialog -->
     <AlertDialog :open="isDeleteDialogOpen" @update:open="isDeleteDialogOpen = $event">

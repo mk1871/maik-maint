@@ -55,6 +55,13 @@ const isSubmitting = ref(false)
 const isEditMode = computed(() => props.mode === 'edit')
 const dialogTitle = computed(() => isEditMode.value ? 'Editar Alojamiento' : 'Crear Nuevo Alojamiento')
 
+// Abrir automáticamente cuando es modo edición
+watch(() => props.accommodation, (newValue) => {
+  if (newValue && isEditMode.value) {
+    isOpen.value = true
+  }
+}, { immediate: true })
+
 const { defineField, handleSubmit, errors, resetForm, setValues } = useForm<AccommodationFormValues>({
   validationSchema: accommodationValidationSchema,
   initialValues: {
@@ -66,7 +73,6 @@ const { defineField, handleSubmit, errors, resetForm, setValues } = useForm<Acco
   },
 })
 
-// Usar defineField correctamente
 const [code] = defineField('code')
 const [name] = defineField('name')
 const [address] = defineField('address')
@@ -127,8 +133,13 @@ const onSubmit = handleSubmit(async (values) => {
 
 const handleOpenChange = (open: boolean) => {
   isOpen.value = open
-  if (!open && !isEditMode.value) {
-    resetForm()
+  if (!open) {
+    if (!isEditMode.value) {
+      resetForm()
+    } else {
+      // Emitir success para cerrar el dialog de edición
+      emit('success')
+    }
   }
 }
 </script>
