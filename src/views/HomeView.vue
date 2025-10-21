@@ -1,13 +1,10 @@
 <script lang="ts" setup>
-import { ref } from 'vue'
+import { onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { useForm } from 'vee-validate'
 import { toast } from 'vue-sonner'
-import { Loader2 } from 'lucide-vue-next'
+import { LogOut, Home as HomeIcon, Building2, ClipboardList } from 'lucide-vue-next'
 
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import {
   Card,
   CardContent,
@@ -15,25 +12,27 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
+import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 
 import { useAuthStore } from '@/stores/auth'
-import { loginValidationSchema, type LoginFormValues } from '@/schemas/authSchema'
 
 const router = useRouter()
 const authStore = useAuthStore()
 
-const isSubmitting = ref(false)
-
-const { defineField, handleSubmit, errors } = useForm<LoginFormValues>({
-  validationSchema: loginValidationSchema,
-  initialValues: {
-    email: '',
-    password: ''
+onMounted(async () => {
+  // Asegurar que el perfil está cargado
+  if (!authStore.profile && authStore.user) {
+    await authStore.fetchProfile()
   }
 })
-
-const [email, emailAttrs] = defineField('email')
-const [password, passwordAttrs] = defineField('password')
 
 /**
  * Extrae mensaje de error de forma segura
@@ -47,95 +46,127 @@ const getErrorMessage = (error: unknown): string => {
   return 'Error desconocido'
 }
 
-const onSubmit = handleSubmit(async (values) => {
+const handleLogout = async () => {
   try {
-    isSubmitting.value = true
-    await authStore.login(values.email, values.password)
-
-    toast.success('¡Bienvenido!', {
-      description: `Has iniciado sesión como ${authStore.userDisplayName}`
-    })
-
-    router.push({ name: 'Home' })
+    await authStore.logout()
+    toast.success('Sesión cerrada correctamente')
+    router.push({ name: 'Login' })
   } catch (error: unknown) {
-    toast.error('Error al iniciar sesión', {
-      description: getErrorMessage(error) || 'Verifica tus credenciales e intenta de nuevo'
+    toast.error('Error al cerrar sesión', {
+      description: getErrorMessage(error)
     })
-  } finally {
-    isSubmitting.value = false
   }
-})
+}
+
+const getInitials = (name: string): string => {
+  return name
+    .split(' ')
+    .map(word => word[0])
+    .join('')
+    .toUpperCase()
+    .slice(0, 2)
+}
 </script>
 
 <template>
-  <div class="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 p-4">
-    <Card class="w-full max-w-md shadow-lg">
-      <CardHeader class="space-y-1">
-        <CardTitle class="text-2xl font-bold text-center">
-          Sistema de Mantenimiento
-        </CardTitle>
-        <CardDescription class="text-center">
-          Ingresa tus credenciales para acceder
-        </CardDescription>
-      </CardHeader>
-
-      <CardContent>
-        <form class="space-y-4" @submit="onSubmit">
-          <!-- Email -->
-          <div class="space-y-2">
-            <Label for="email">Email</Label>
-            <Input
-              id="email"
-              v-model="email"
-              :disabled="isSubmitting"
-              autocomplete="email"
-              placeholder="tu@email.com"
-              type="email"
-              v-bind="emailAttrs"
-            />
-            <p v-if="errors.email" class="text-sm text-destructive">
-              {{ errors.email }}
-            </p>
+  <div class="min-h-screen bg-slate-50">
+    <!-- Header -->
+    <header class="bg-white border-b sticky top-0 z-50">
+      <div class="container mx-auto px-4 py-4">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <HomeIcon class="h-6 w-6 text-primary" />
+            <h1 class="text-xl font-bold">Sistema de Mantenimiento</h1>
           </div>
 
-          <!-- Password -->
-          <div class="space-y-2">
-            <Label for="password">Contraseña</Label>
-            <Input
-              id="password"
-              v-model="password"
-              :disabled="isSubmitting"
-              autocomplete="current-password"
-              placeholder="••••••••"
-              type="password"
-              v-bind="passwordAttrs"
-            />
-            <p v-if="errors.password" class="text-sm text-destructive">
-              {{ errors.password }}
-            </p>
-          </div>
-
-          <!-- Submit Button -->
-          <Button
-            :disabled="isSubmitting"
-            class="w-full"
-            type="submit"
-          >
-            <Loader2
-              v-if="isSubmitting"
-              class="mr-2 h-4 w-4 animate-spin"
-            />
-            {{ isSubmitting ? 'Iniciando sesión...' : 'Iniciar sesión' }}
-          </Button>
-        </form>
-
-        <!-- Credentials Helper (solo para desarrollo) -->
-        <div class="mt-6 p-3 bg-muted rounded-md">
-          <p class="text-xs text-muted-foreground text-center">
-            Usuario de prueba: <span class="font-mono font-semibold">test@example.com</span>
-          </p>
+          <!-- User Menu -->
+          <DropdownMenu>
+            <DropdownMenuTrigger as-child>
+              <Button class="relative h-10 w-10 rounded-full" variant="ghost">
+                <Avatar>
+                  <AvatarFallback>
+                    {{ getInitials(authStore.userDisplayName) }}
+                  </AvatarFallback>
+                </Avatar>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" class="w-56">
+              <DropdownMenuLabel>
+                <div class="flex flex-col space-y-1">
+                  <p class="text-sm font-medium leading-none">
+                    {{ authStore.userDisplayName }}
+                  </p>
+                  <p class="text-xs leading-none text-muted-foreground">
+                    {{ authStore.user?.email }}
+                  </p>
+                </div>
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem class="text-destructive cursor-pointer" @click="handleLogout">
+                <LogOut class="mr-2 h-4 w-4" />
+                Cerrar sesión
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="container mx-auto px-4 py-8">
+      <div class="space-y-6">
+        <!-- Welcome Card -->
+        <Card>
+          <CardHeader>
+            <CardTitle>¡Bienvenido, {{ authStore.userDisplayName }}!</CardTitle>
+            <CardDescription>
+              Sistema de gestión de mantenimiento de alojamientos
+            </CardDescription>
+          </CardHeader>
+        </Card>
+
+        <!-- Quick Actions -->
+        <div class="grid gap-4 md:grid-cols-2">
+          <Card class="hover:bg-slate-50 transition-colors cursor-pointer" @click="router.push({ name: 'Accommodations' })">
+            <CardHeader>
+              <div class="flex items-center justify-between">
+                <CardTitle class="text-lg">Alojamientos</CardTitle>
+                <Building2 class="h-8 w-8 text-muted-foreground" />
+              </div>
+              <CardDescription>
+                Gestionar propiedades y sus datos
+              </CardDescription>
+            </CardHeader>
+          </Card>
+
+          <Card class="hover:bg-slate-50 transition-colors cursor-pointer" @click="router.push({ name: 'Tasks' })">
+            <CardHeader>
+              <div class="flex items-center justify-between">
+                <CardTitle class="text-lg">Tareas</CardTitle>
+                <ClipboardList class="h-8 w-8 text-muted-foreground" />
+              </div>
+              <CardDescription>
+                Ver y crear tareas de mantenimiento
+              </CardDescription>
+            </CardHeader>
+          </Card>
+        </div>
+
+        <!-- Placeholder Stats -->
+        <Card>
+          <CardHeader>
+            <CardTitle>Estadísticas</CardTitle>
+            <CardDescription>
+              Panel de estadísticas (próximamente)
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p class="text-sm text-muted-foreground">
+              Aquí se mostrarán las estadísticas del sistema cuando implementemos el dashboard completo.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    </main>
   </div>
 </template>
